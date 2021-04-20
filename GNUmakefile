@@ -103,7 +103,7 @@ GCC_LIB := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 # Lists that the */Makefrag makefile fragments will add to
 OBJDIRS :=
 
-#---------------------------------------------------------it seems 'all' is the cmd that make will run------------------
+#-------------------------------------it seems 'all' is the cmd that make will run------------------
 # Make sure that 'all' is the first target
 all:
 
@@ -143,162 +143,11 @@ IMAGES = $(OBJDIR)/kern/kernel.img
 QEMUOPTS += $(QEMUEXTRA)
 
 #---------------------------------------------------end of 'all'-----------------------
-$(info end of all-1------------------------------------)
-.gdbinit: .gdbinit.tmpl
-	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
-$(info .gdbinit------------------------------------)
-
-$(info end of all 2------------------------------------)
-gdb:
-	gdb -n -x .gdbinit
-
-$(info end of all 3------------------------------------)
-pre-qemu: .gdbinit
-
-qemu: $(IMAGES) pre-qemu
-	$(QEMU) $(QEMUOPTS)
-
-qemu-nox: $(IMAGES) pre-qemu
-	@echo "***"
-	@echo "*** Use Ctrl-a x to exit qemu"
-	@echo "***"
-	$(QEMU) -nographic $(QEMUOPTS)
-
-qemu-gdb: $(IMAGES) pre-qemu
-	@echo "***"
-	@echo "*** Now run 'make gdb'." 1>&2
-	@echo "***"
-	$(QEMU) $(QEMUOPTS) -S
-
-qemu-nox-gdb: $(IMAGES) pre-qemu
-	@echo "***"
-	@echo "*** Now run 'make gdb'." 1>&2
-	@echo "***"
-	$(QEMU) -nographic $(QEMUOPTS) -S
-
-print-qemu:
-	@echo $(QEMU)
-
-print-gdbport:
-	@echo $(GDBPORT)
-
-# For deleting the build
 clean:
-	rm -rf $(OBJDIR) .gdbinit jos.in qemu.log
-
-realclean: clean
-	rm -rf lab$(LAB).tar.gz \
-		jos.out $(wildcard jos.out.*) \
-		qemu.pcap $(wildcard qemu.pcap.*) \
-		myapi.key
-
-distclean: realclean
-	rm -rf conf/gcc.mk
-
-ifneq ($(V),@)
-GRADEFLAGS += -v
-endif
-
-grade:
-	@echo $(MAKE) clean
-	@$(MAKE) clean || \
-	  (echo "'make clean' failed.  HINT: Do you have another running instance of JOS?" && exit 1)
-	./grade-lab$(LAB) $(GRADEFLAGS)
-
-git-handin: handin-check
-	@if test -n "`git config remote.handin.url`"; then \
-		echo "Hand in to remote repository using 'git push handin HEAD' ..."; \
-		if ! git push -f handin HEAD; then \
-            echo ; \
-			echo "Hand in failed."; \
-			echo "As an alternative, please run 'make tarball'"; \
-			echo "and visit http://pdos.csail.mit.edu/6.828/submit/"; \
-			echo "to upload lab$(LAB)-handin.tar.gz.  Thanks!"; \
-			false; \
-		fi; \
-    else \
-		echo "Hand-in repository is not configured."; \
-		echo "Please run 'make handin-prep' first.  Thanks!"; \
-		false; \
-	fi
-
-WEBSUB := https://6828.scripts.mit.edu/2018/handin.py
-
-handin: tarball-pref myapi.key
-	@SUF=$(LAB); \
-	test -f .suf && SUF=`cat .suf`; \
-	curl -f -F file=@lab$$SUF-handin.tar.gz -F key=\<myapi.key $(WEBSUB)/upload \
-	    > /dev/null || { \
-		echo ; \
-		echo Submit seems to have failed.; \
-		echo Please go to $(WEBSUB)/ and upload the tarball manually.; }
-
-handin-check:
-	@if ! test -d .git; then \
-		echo No .git directory, is this a git repository?; \
-		false; \
-	fi
-	@if test "$$(git symbolic-ref HEAD)" != refs/heads/lab$(LAB); then \
-		git branch; \
-		read -p "You are not on the lab$(LAB) branch.  Hand-in the current branch? [y/N] " r; \
-		test "$$r" = y; \
-	fi
-	@if ! git diff-files --quiet || ! git diff-index --quiet --cached HEAD; then \
-		git status -s; \
-		echo; \
-		echo "You have uncomitted changes.  Please commit or stash them."; \
-		false; \
-	fi
-	@if test -n "`git status -s`"; then \
-		git status -s; \
-		read -p "Untracked files will not be handed in.  Continue? [y/N] " r; \
-		test "$$r" = y; \
-	fi
-
-UPSTREAM := $(shell git remote -v | grep "pdos.csail.mit.edu/6.828/2018/jos.git (fetch)" | awk '{split($$0,a," "); print a[1]}')
-
-tarball-pref: handin-check
-	@SUF=$(LAB); \
-	if test $(LAB) -eq 3 -o $(LAB) -eq 4; then \
-		read -p "Which part would you like to submit? [a, b, c (c for lab 4 only)]" p; \
-		if test "$$p" != a -a "$$p" != b; then \
-			if test ! $(LAB) -eq 4 -o ! "$$p" = c; then \
-				echo "Bad part \"$$p\""; \
-				exit 1; \
-			fi; \
-		fi; \
-		SUF="$(LAB)$$p"; \
-		echo $$SUF > .suf; \
-	else \
-		rm -f .suf; \
-	fi; \
-	git archive --format=tar HEAD > lab$$SUF-handin.tar; \
-	git diff $(UPSTREAM)/lab$(LAB) > /tmp/lab$$SUF-diff.patch; \
-	tar -rf lab$$SUF-handin.tar /tmp/lab$$SUF-diff.patch; \
-	gzip -c lab$$SUF-handin.tar > lab$$SUF-handin.tar.gz; \
-	rm lab$$SUF-handin.tar; \
-	rm /tmp/lab$$SUF-diff.patch; \
-
-myapi.key:
-	@echo Get an API key for yourself by visiting $(WEBSUB)/
-	@read -p "Please enter your API key: " k; \
-	if test `echo "$$k" |tr -d '\n' |wc -c` = 32 ; then \
-		TF=`mktemp -t tmp.XXXXXX`; \
-		if test "x$$TF" != "x" ; then \
-			echo "$$k" |tr -d '\n' > $$TF; \
-			mv -f $$TF $@; \
-		else \
-			echo mktemp failed; \
-			false; \
-		fi; \
-	else \
-		echo Bad API key: $$k; \
-		echo An API key should be 32 characters long.; \
-		false; \
-	fi;
+	rm -rf $(OBJDIR) .gdbinit jos.in qemu.log;
 
 #handin-prep:
-#	@./handin-prep
+#   @./handin-prep
 
 
 # This magic automatically generates makefile dependencies
@@ -311,8 +160,3 @@ $(OBJDIR)/.deps: $(foreach dir, $(OBJDIRS), $(wildcard $(OBJDIR)/$(dir)/*.d))
 
 -include $(OBJDIR)/.deps
 
-always:
-	@:
-
-.PHONY: all always \
-	handin git-handin tarball tarball-pref clean realclean distclean grade handin-prep handin-check
