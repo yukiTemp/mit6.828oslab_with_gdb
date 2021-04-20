@@ -1,13 +1,8 @@
-#
-# This makefile system follows the structuring conventions
-# recommended by Peter Miller in his excellent paper:
-#
-#	Recursive Make Considered Harmful
-#	http://aegis.sourceforge.net/auug97.pdf
-#
-OBJDIR := obj
+
+OBJDIR := obj#define the obj directory
 
 # Run 'make V=1' to turn on verbose commands, or 'make V=0' to turn them off.
+# 如果编译时使用make V=1，则会输出详细编译信息，否则输出类似 “CC MAIN”的简单信息
 ifeq ($(V),1)
 override V =
 endif
@@ -15,14 +10,16 @@ ifeq ($(V),0)
 override V = @
 endif
 
+#these two files just define 3 variables:V LAB PACKAGEDATE, no big deal
 -include conf/lab.mk
 
--include conf/env.mk
+-include conf/env.mk#just another makefile
 
 LABSETUP ?= ./
 
 TOP = .
 
+#$(info info text------------------------------------)
 # Cross-compiler jos toolchain
 #
 # This Makefile will automatically use the cross-compiler toolchain
@@ -106,6 +103,7 @@ GCC_LIB := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 # Lists that the */Makefrag makefile fragments will add to
 OBJDIRS :=
 
+#---------------------------------------------------------it seems 'all' is the cmd that make will run------------------
 # Make sure that 'all' is the first target
 all:
 
@@ -144,12 +142,17 @@ QEMUOPTS += $(shell if $(QEMU) -nographic -help | grep -q '^-D '; then echo '-D 
 IMAGES = $(OBJDIR)/kern/kernel.img
 QEMUOPTS += $(QEMUEXTRA)
 
+#---------------------------------------------------end of 'all'-----------------------
+$(info end of all-1------------------------------------)
 .gdbinit: .gdbinit.tmpl
 	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
+$(info .gdbinit------------------------------------)
 
+$(info end of all 2------------------------------------)
 gdb:
 	gdb -n -x .gdbinit
 
+$(info end of all 3------------------------------------)
 pre-qemu: .gdbinit
 
 qemu: $(IMAGES) pre-qemu
