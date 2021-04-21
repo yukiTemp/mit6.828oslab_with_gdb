@@ -75,6 +75,7 @@ $(OBJDIR)/kern/kernel: $(KERN_OBJFILES) $(KERN_BINFILES) kern/kernel.ld \
 	$(V)$(OBJDUMP) -S $@ > $@.asm
 	$(V)$(NM) -n $@ > $@.sym
 # How to build the kernel disk image
+# kernel and boot is Intermediate file, and will be deleted by make automatically
 # -------------------------------------------------
 $(OBJDIR)/kern/kernel.img: $(OBJDIR)/kern/kernel $(OBJDIR)/boot/boot
 	@echo + mk $@

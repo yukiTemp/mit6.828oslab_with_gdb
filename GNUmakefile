@@ -113,7 +113,7 @@ all:
 # Delete target files if there is an error (or make is interrupted)
 .DELETE_ON_ERROR:
 
-# make it so that no intermediate .o files are ever deleted
+#write .PRECIOUS here, so that no intermediate .o files are ever deleted
 .PRECIOUS: %.o $(OBJDIR)/boot/%.o $(OBJDIR)/kern/%.o \
 	   $(OBJDIR)/lib/%.o $(OBJDIR)/fs/%.o $(OBJDIR)/net/%.o \
 	   $(OBJDIR)/user/%.o
@@ -143,20 +143,47 @@ IMAGES = $(OBJDIR)/kern/kernel.img
 QEMUOPTS += $(QEMUEXTRA)
 
 #---------------------------------------------------end of 'all'-----------------------
+
+.gdbinit: .gdbinit.tmpl
+	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
+
+gdb:
+	gdb -n -x .gdbinit
+
+pre-qemu: .gdbinit
+
+qemu: $(IMAGES) pre-qemu
+	@echo "----------"
+	@echo $(QEMU) $(QEMUOPTS)
+	$(QEMU) $(QEMUOPTS)
+qemu-nox: $(IMAGES) pre-qemu
+	@echo "***"
+	@echo "*** Use Ctrl-a x to exit qemu"
+	@echo "***"
+	$(QEMU) -nographic $(QEMUOPTS)
+
+qemu-gdb: $(IMAGES) pre-qemu
+	@echo "***"
+	@echo "*** Now run 'make gdb'." 1>&2
+	@echo "***"
+	$(QEMU) $(QEMUOPTS) -S
+
+qemu-nox-gdb: $(IMAGES) pre-qemu
+	@echo "***"
+	@echo "*** Now run 'make gdb'." 1>&2
+	@echo "***"
+	$(QEMU) -nographic $(QEMUOPTS) -S
 clean:
 	rm -rf $(OBJDIR) .gdbinit jos.in qemu.log;
-
-#handin-prep:
-#   @./handin-prep
 
 
 # This magic automatically generates makefile dependencies
 # for header files included from C source files we compile,
 # and keeps those dependencies up-to-date every time we recompile.
 # See 'mergedep.pl' for more information.
+# -------------------------------------------------------------------------------
 $(OBJDIR)/.deps: $(foreach dir, $(OBJDIRS), $(wildcard $(OBJDIR)/$(dir)/*.d))
 	@mkdir -p $(@D)
 	@$(PERL) mergedep.pl $@ $^
-
 -include $(OBJDIR)/.deps
 
